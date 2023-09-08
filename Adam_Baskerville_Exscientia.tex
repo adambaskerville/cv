@@ -1,0 +1,116 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Important note:
+% This template must be compiled with XeLaTeX, the below lines will ensure this
+%!TEX TS-program = xelatex
+%!TEX encoding = UTF-8 Unicode
+%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+%----------------------------------------------------------------------------------------
+%	PACKAGES AND OTHER DOCUMENT CONFIGURATIONS
+%----------------------------------------------------------------------------------------
+
+\documentclass[12pt, a4paper]{awesome-cv} % A4 paper size by default, use 'letterpaper' for US letter
+
+\geometry{left=2cm, top=1.5cm, right=2cm, bottom=2cm, footskip=.5cm} % Configure page margins with geometry
+
+% Colours
+
+\RequirePackage{xcolor}
+
+\definecolor{white}{HTML}{FFFFFF}
+\definecolor{lightgray}{HTML}{999999}
+\definecolor{gray}{HTML}{555555}
+\definecolor{paynegray}{HTML}{353E49}
+\definecolor{black}{HTML}{000000}
+\definecolor{gray-asparagus}{rgb}{0.27, 0.35, 0.27}
+\definecolor{graygray}{rgb}{0.5, 0.5, 0.5}
+% \definecolor{paynegray}{HTML}{272F38}
+\definecolor{coralpink}{HTML}{FF706C}
+
+
+\colorlet{regulartext}{paynegray} %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\colorlet{headerfill}{paynegray}
+\colorlet{headertext}{white}
+\colorlet{lighttext}{black!55} %% Controls the lighter text in descriptions etc...
+\colorlet{linktext}{coralpink}
+
+
+\usepackage[utf8]{inputenc}
+
+
+\RequirePackage[backend=biber,defernumbers=false,maxnames=99,sorting=none,style=numeric]{biblatex}
+\RequirePackage{csquotes}
+
+\urlstyle{same}
+
+
+
+\fontdir[fonts/] % Specify the location of the included fonts
+
+% Color for highlights
+\colorlet{awesome}{awesome-skyblue} % Default colors include: awesome-emerald, awesome-skyblue, awesome-red, awesome-pink, awesome-orange, awesome-nephritis, awesome-concrete, awesome-darknight
+%\definecolor{awesome}{HTML}{CA63A8} % Uncomment if you would like to specify your own color
+
+% Colors for text - uncomment and modify
+%\definecolor{darktext}{HTML}{414141}
+%\definecolor{text}{HTML}{414141}
+%\definecolor{graytext}{HTML}{414141}
+%\definecolor{lighttext}{HTML}{414141}
+
+\renewcommand{\acvHeaderSocialSep}{\quad\textbar\quad} % If you would like to change the social information separator from a pipe (|) to something else
+
+%----------------------------------------------------------------------------------------
+%	PERSONAL INFORMATION
+%	Comment any of the lines below if they are not required
+%----------------------------------------------------------------------------------------
+
+\name{\vspace{-0.2cm}Dr Adam Luke}{Baskerville}
+%\address{University of Sussex, Brighton, UK}
+\mobile{(+44) 07896 941 917}
+
+\email{a.baskerville@sussex.ac.uk}
+\homepage{adambaskerville.github.io/}
+%\github{posquit0}
+%\linkedin{posquit0}
+%\skype{skypeid}
+%\stackoverflow{SOid}{SOname}
+%\twitter{@AdamBask}
+%\linkedin{linkedin name}
+%\reddit{reddit account}
+%\xing{xing name}
+%\extrainfo{test} % Other text you want to include on this line
+
+%\position{PhD student{\enskip\cdotp\enskip}Physicist} % Your expertise/fields
+\position{Curriculum Vitae}
+
+\makecvfooter{}{Adam L. Baskerville~~~·~~~Curriculum Vitae}{\thepage} % Specify the letter footer with 3 arguments: (<left>, <center>, <right>), leave any of these blank if they are not needed
+
+%----------------------------------------------------------------------------------------\part{title}
+
+% % Correct C++ notation
+
+\makeatletter
+\newcommand{\Cpp}{C\texttt{++}}
+\makeatother
+
+% % Roman numerals
+
+\makeatletter
+\newcommand{\rmnum}[1]{\romannumeral #1}
+\newcommand{\Rmnum}[1]{\expandafter\@slowromancap\romannumeral #1@}
+\makeatother
+
+\begin{document}
+
+\makecvheader % Print the header
+
+\input{cv-sections/summary.tex}
+\input{cv-sections/computer_skills.tex}
+\input{cv-sections/experience.tex}
+\input{cv-sections/education.tex}
+\input{cv-sections/awards.tex}
+\input{cv-sections/interests.tex}
+
+\end{document}

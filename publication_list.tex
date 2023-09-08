@@ -1,0 +1,197 @@
+\documentclass[12pt]{article}
+
+\usepackage{tkz-euclide}
+\usepackage{svg}
+
+\makeatletter 
+\def\input@path{{\string~/Postdoc/post_doc_2019/Reports/}} 
+\makeatother
+\input{preamble.tex}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage[toc,page]{appendix}
+\usepackage{subfig}
+\usepackage{caption}
+\usepackage[sorting=none]{biblatex}
+\usepackage{threeparttable}
+\DeclareCiteCommand{\supercite}[\mkbibsuperscript]
+  {\iffieldundef{prenote}
+     {}
+     {\BibliographyWarning{Ignoring prenote argument}}%
+   \iffieldundef{postnote}
+     {}
+     {\BibliographyWarning{Ignoring postnote argument}}}
+  {\usebibmacro{citeindex}%
+   \bibopenbracket\usebibmacro{cite}\bibclosebracket}
+  {\supercitedelim}
+  {}
+
+\addbibresource{references.bib}
+
+\let\cite=\supercite
+
+%% CUSTOM COLOURS
+
+\definecolor{BleachedCedar}{RGB}{102,153,204}
+\definecolor{Picasso}{RGB}{221,204,119}
+\definecolor{DimGray}{RGB}{252,199,199}
+\definecolor{PastelGreen}{RGB}{119,221,119}
+\definecolor{darkpastelgreen}{rgb}{0.01, 0.75, 0.24}
+\definecolor{PastelRed}{RGB}{255,105,98}
+\definecolor{darkpastelred}{rgb}{0.76, 0.23, 0.13}
+\definecolor{pastelorange}{rgb}{1.0, 0.7, 0.28}
+\definecolor{pastelbrown}{rgb}{0.51, 0.41, 0.33}
+\definecolor{PastelBlue}{RGB}{174,198,207}
+\definecolor{darkpastelblue}{rgb}{0.47, 0.62, 0.8}
+\definecolor{darkpastelpurple}{rgb}{0.59, 0.44, 0.84}
+\definecolor{dodgerblue}{RGB}{30, 144, 255}
+\definecolor{indianred}{RGB}{205, 92, 92}
+
+\begin{document}
+
+\title{\vspace{-1cm}Progress Summary}
+\author{Adam Baskerville\\
+	University of Sussex}
+\date{\today}
+\maketitle
+
+\section{Summary}
+
+\begin{enumerate}
+  \item Progress has been made on the Colle-Salvetti review paper with updates added to the Box directory.
+  \item Excited state data using the \m{AB} excited state method was analysed from old \texttt{.log} and \texttt{.sv} files and familiar issues were found for energy calculations of the \m{Z_C} system due to the QZ algorithm occasionally producing rogue eigenvalues which shifted the eigenvalue sorting. I previously implemented the Locally Optimal Block Preconditioned Conjugate Gradient algorithm, LOBPCG along with a GPU implementation, but it was inefficient and needed more time invested. Having tired of the intricacies of complex eigenvalue algorithms and wanting good results, the Pekeris methods\cite{Pekeris:1958,Pekeris:1962uv} (and subsequent Cox modifications\cite{Cox:1994a}) have now been transformed into a GPU machine learning methodology for the first time. The motivation for this was two-fold:
+  \begin{enumerate}
+    \item Bypass complex, numerically unstable eigenvalue algorithms when using \textit{large} dense matrices in the excited state method.
+    \item Use the computational power of the Titan V GPU which has not being fully utilized thus far. 
+  \end{enumerate} 
+\end{enumerate}
+
+\section{Machine Learning Pekeris Implementation}
+
+The majority of the Pekeris method remains unchanged as there is no need to modify it for machine learning purposes. The focus of our interests is the resulting generalized eigenvalue problem 
+
+\begin{equation}
+  \mathbf{H}\Psi = \lambda \mathbf{S}\Psi,
+  \label{eqn:GEP}
+\end{equation}
+where \m{\mathbf{H}} is the Hamiltonian matrix, \m{\mathbf{S}} the overlap matrix and \m{\lambda} the eigenvalue. The 3Body2 program currently has two\footnote{three including the lobpcg algorithm but has not been added into the documentation.} main eigenvalue algorithms:
+
+\begin{enumerate}
+  \item \texttt{syevd}: Cholesky decomposition followed by Householder reduction\cite{Anderson:1999vp}.
+  \item \texttt{QZ}: The generalized Schur decomposition\cite{Kaufman:1977}.
+\end{enumerate}
+\texttt{QZ} is significantly more numerically stable than \texttt{syevd}\cite{BaskervilleThesis:2018}, so finds application in the excited state method where the matrices are dense and ill-conditioned. It may be numerically stable but it is very slow and the resulting eigenvalues are unordered. The implemented QZ algorithm has not been seen to mis-calculate the eigenvalue of interest, but it has a tendency to calculate a rogue eigenvalue at a different position in the spectrum. Due to the eigenvalues being unordered at the end of the calculation the 3Body2 program orders them but these rogue eigenvalues can interfere with the ordering process resulting in a mis-positioned eigenvalue masquerading as the final result. This is only an issue for the ground state and excited states where \m{n < 4}, \m{n} being the principal quantum number; due to the non linear variational parameters, \m{A} and \m{B} becoming too close to each other causing numerical instabilities.
+
+To modify the generalized eigenvalue problem, equation (\ref{eqn:GEP}) needs to be transformed into a suitable machine learning form, consider the following where the $\mathbf{S}$ matrix has been moved over to the LHS of the genralized eigenvalue problem
+
+\begin{equation}
+  (\mathbf{H} - \lambda \mathbf{S})\Psi = 0.
+\end{equation}
+In the language of machine learning the eigenvalue \m{\lambda} can be perceived as a loss function, i.e. penalty for `miscalculating' \m{\mathbf{S}} as when \m{\mathbf{H} = \mathbf{S}} and \m{\lambda = 1} the equation is satisfied. A familiar form in quantum mechanics is the Rayleigh quotient, or Rayleigh-Ritz ratio
+
+\begin{equation}
+  \frac{\Psi \hat{H} \Psi}{\Psi \hat{S} \Psi} = \lambda,
+\end{equation}
+which calculates the expectation value of the observable corresponding to the operator. This form is \textit{ideal} for a machine learning method as minimizing the Rayleigh quotient corresponds to the smallest (real) eigenvalue of the generalized Hermitian eigenvalue problem\cite{Bai:2018}
+
+\begin{equation}
+  \min_\Psi\left(\frac{\Psi \hat{H} \Psi}{\Psi \hat{S} \Psi}\right) = \lambda.
+\end{equation}
+Throughout the next section the word tensor is used owing to the implementation of all vectors and matrices being done using tensors within Python. Technically they are still vectors: 1D tensors and matrices: 2D tensors.
+
+\vspace{0.5cm}
+
+\noindent Machine learning setup:
+
+\begin{enumerate}
+  \item The wavefunction coefficients act as our weights which are optimized on the GPU. These are initiated as a column tensor which has the same number of terms as the wavefunction.
+  \item The wavefunction tensor is initially populated using random numbers from the normal distribution. This is done to not bias the system by giving it a known wavefunction as a starting guess. 
+  \item The Hamiltonian and overlap matrices are built as they usually are and moved onto the GPU.
+  \item The Rayleigh product is then formed, with an example for a 1000-term wavefunction given below where \(w_i\) represents the weights:
+  \begin{equation}
+    \frac{\overbrace{
+          \begin{pmatrix}
+            w_1 \\
+            w_2 \\
+            w_3 \\
+            \vdots \\
+            w_{999} \\
+            w_{1000}
+          \end{pmatrix}}^{\Psi}
+          \overbrace{
+          \begin{pmatrix}
+            H_{1,1} & H_{1,2} & \hdots & H_{1,999} & H_{1,1000}\\
+            H_{2,1} & H_{2,2} & \hdots & H_{2,999} & H_{2,1000}\\
+            H_{3,1} & H_{3,2} & \hdots & H_{3,999} & H_{3,1000}\\
+            \vdots & \vdots & \ddots & \vdots & \vdots \\
+            H_{999,1} & H_{999,2} & \hdots & H_{999,999} & H_{999,1000}\\
+            H_{1000,1} & H_{1000,2} & \hdots & H_{1000,1000} & H_{1000,1000}\\
+          \end{pmatrix}}^{\mathbf{H}}
+          \overbrace{
+          \begin{pmatrix}
+            w_1 \\
+            w_2 \\
+            w_3 \\
+            \vdots \\
+            w_{999} \\
+            w_{1000}
+          \end{pmatrix}}^{\Psi}
+         }{\underbrace{
+          \begin{pmatrix}
+          w_1 \\
+          w_2 \\
+          w_3 \\
+          \vdots \\
+          w_{999} \\
+          w_{1000}
+        \end{pmatrix}}_{\Psi}
+        \underbrace{
+        \begin{pmatrix}
+          S_{1,1} & S_{1,2} & \hdots & S_{1,999} & S_{1,1000}\\
+          S_{2,1} & S_{2,2} & \hdots & S_{2,999} & S_{2,1000}\\
+          S_{3,1} & S_{3,2} & \hdots & S_{3,999} & S_{3,1000}\\
+          \vdots & \vdots & \ddots & \vdots & \vdots \\
+          S_{999,1} & S_{999,2} & \hdots & S_{999,999} & S_{999,1000}\\
+          S_{1000,1} & S_{1000,2} & \hdots & S_{1000,1000} & S_{1000,1000}\\
+        \end{pmatrix}}_{\mathbf{S}}
+        \underbrace{
+        \begin{pmatrix}
+          w_1 \\
+          w_2 \\
+          w_3 \\
+          \vdots \\
+          w_{999} \\
+          w_{1000}
+        \end{pmatrix}}_{\Psi}
+        }  = \lambda
+  \end{equation}
+  \item All the weights in the eigenvector are varied in order to minimize the entire LHS, calculating the lowest eigenvalue which in our case is the ground state. This represents a lot of computation but the GPU can vary these weights \textit{very} rapidly. Preliminary timing data shows that this method is orders of magnitude faster than the QZ algorithm without numerical instabilities.  
+  \item The weights are varied using the resilient backpropagation algorithm, \texttt{Rprop} which is implemented in PyTorch.
+  \item This whole process is wrapped in our usual optimization code to vary the \m{K, A, B, C} parameters. The final weights from each \m{K, A, B, C} optimization step can be used as the starting point for the next \m{K, A, B, C} optimization step meaning the optimization is learning as it progresses; or they can be re-initialised using the normal distribution. 
+\end{enumerate}
+To prove the correct implementation of this idea, the Fully Correlated ground state energy of the Z\m{_C} system was calculated to be \m{E = \textbf{-0.414\ 986\ 212}\ 437} hartrees using a \m{3276 \times 3276} size matrix under the infinite nuclear mass approximation and using this new machine learning technique. Bold digits represent convergence with the exact value calculated as Z\m{_c^2}/2. This was just the initial implementation of the algorithm and there is a lot of room for refinements and improvements. The \m{3276 \times 3276} matrix size was usually the limit the QZ algorithm could handle whereas the GPU processed it as quickly as a CPU would process a \m{500 \times 500} size matrix. 
+
+\section{Conclusions} 
+
+A machine learning implementation of the Pekeris method has been implemented, proving to be incredibly useful when applied to calculation of the ground state when using the excited state methodology; crucial for studying the bound state stability of the Z\m{_C} system using the excited state method.
+
+Having exhausted the CS methodology and discovering the numerous underlying issues the following is proposed for discussion:
+
+\begin{enumerate}
+  \item Finish the CS review paper and the paper outlining our investigation of the CS method. ASAP.
+  \item Focus on using our Fully Correlated data to develop a functional. The Fully correlated data on its own is not useful as we need a way to separate out the correlation behaviour. Our Hartree Fock orbitals combined with the Fully Correlated data should allow this to be doable. We could revisit the original expression in the CS method\cite{Colle:1975ke}:
+  \item[] 
+  \begin{equation}
+    \Psi(\mathbf{x}_1, \mathbf{x}_2, \ldots, \mathbf{x}_n) = \Psi_\text{HF}(\mathbf{x}_1, \mathbf{x}_2, \ldots, \mathbf{x}_n)\prod\limits_{i>j}(1-\phi(\mathbf{r}_i, \mathbf{r}_j)), 
+  \end{equation}
+  \item[] which we have two components of, \m{\Psi}, assuming our FC wavefunction is close to the exact, and the HF orbital, \m{\Psi_\text{HF}}. When a pair of electrons collide this function becomes\cite{Colle:1975ke}
+  
+  \begin{equation}
+    \Psi = \Psi_\text{HF}\Phi\left(\frac{\mathbf{r}_i + \mathbf{r}_j}{2}\right)
+  \end{equation}
+  \item By setting \m{r_{12} = 0 \rightarrow r_1 = r_2} we can analyse what the function \m{\Phi} should look like using our data. We can test the Colle Salvetti functional form against it to see how accurate the fit is and more importantly develop our own, better form. The exact and dynamic Coulomb holes could play an important role here. 
+\end{enumerate}
+
+\printbibliography
+
+\end{document}
